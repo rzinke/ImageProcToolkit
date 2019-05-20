@@ -167,6 +167,8 @@ def dzdx(I,dx=1.,ktype='sobel'):
 	elif ktype=='scharr':
 		h=np.array([[-3.,0.,3.],[-10,0.,10],[-3.,0.,3.]])
 		h=h/(32*dx)
+	else: 
+		print('Kernel types: roberts,prewitt,sobel,scharr')
 	dX=sig.convolve2d(I,h,'same')
 	return dX
 
@@ -185,6 +187,8 @@ def dzdy(I,dy=1.,ktype='sobel'):
 	elif ktype=='scharr':
 		h=np.array([[3.,10,3.],[0.,0.,0.],[-3.,-10,-3.]])
 		h=h/(32*dy)
+	else: 
+		print('Kernel types: roberts,prewitt,sobel,scharr')
 	dY=sig.convolve2d(I,h,'same')
 	return dY
 
