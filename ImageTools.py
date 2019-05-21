@@ -350,6 +350,52 @@ def gaussTransform(I,A,B,ds=0,interp_kind='linear',show_gamma=False):
 	Itrans=Itrans.reshape(m,n) 
 	return Itrans 
 
+
+# --- Histogram equalize --- 
+def equalize(I,nbins=256,ds=0,vocal=False,plot=False): 
+	# Setup 
+	ds=int(2**ds); I=I[::ds,::ds] 
+	m,n=I.shape # orig shape 
+	Imin=I.min(); Imax=I.max() 
+	Ivals=I.copy().reshape(1,-1).squeeze(0) # single row 
+	N=len(Ivals) # total number of pixels 
+	# Build initial histogram 
+	H0,edges=np.histogram(Ivals,bins=nbins) 
+	cntrs=edges[:-1]+np.diff(edges)/2 
+	# Calculate probability distributions 
+	P0=H0/N # probability mass 
+	C0=np.cumsum(P0) # cumulative prob 
+	C0[0]=0 # start with zero 
+	C0=(Imax-Imin)*C0+Imin # value range 
+	if vocal is True: 
+		print('Equalizing')
+		print('\tImin: %f\tImax: %f' % (Imin,Imax)) 
+		print('\tCmin: %f\tCmax: %f' % (C0.min(),C0.max()))
+	# Inverse distribution function 
+	Cintp=intp.interp1d(edges[:-1],C0,kind='linear',bounds_error=False,fill_value=Imax) 
+	Ieq=Cintp(I) 
+	# Plot 
+	Heq,edges=np.histogram(Ieq,bins=nbins) 
+	Peq=Heq/N 
+	Ceq=(Imax-Imin)*np.cumsum(Peq)+Imin 
+	X=np.hstack([cntrs.reshape(-1,1),np.ones((nbins,1))]) 
+	fit=np.linalg.inv(X.T.dot(X)).dot(X.T).dot(Ceq.reshape(-1,1)) 
+	if plot is not False: 
+		F=plt.figure() 
+		ax1=F.add_subplot(2,1,1) 
+		ax1.bar(cntrs-0.4,P0,color='k') 
+		ax1.bar(cntrs+0.4,Peq,color='b')
+		ax1.set_ylabel('PDF') 
+		ax2=F.add_subplot(2,1,2) 
+		ax2.plot(cntrs,C0,'k',linewidth=2,zorder=1)
+		ax2.plot(cntrs,X.dot(fit),color=(0.5,0.6,1),zorder=2) 
+		ax2.plot(cntrs,Ceq,'b',linewidth=2,zorder=3)
+		ax2.set_ylabel('CDF') 
+	if vocal is True: 
+		print('\tfit: %f' % (fit[0]))
+	return Ieq 
+
+
 # --- Fit plane --- 
 # Fit a 2D plane to data 
 class fitPlane:
