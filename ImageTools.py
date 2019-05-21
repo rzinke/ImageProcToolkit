@@ -357,7 +357,7 @@ class fitPlane:
 		# Fit a plane to the points 
 		# INPUTS 
 		#	data is the dataset, either as: 
-		#	  m x 3 points [x,y,z] 
+		#	  m x 3 points (x,y,z) 
 		#	  m x n 2D array with no spatial reference 
 		#	dtype is the data type: 
 		#	  'points' or 'pts' 
@@ -480,9 +480,20 @@ class fitPlane:
 		self.Z=Z # hypothetical plane 
 
 # --- Remove tilt --- 
-def tilt(data,dtype,ds=0,vocal=False,plot=False): 
+def untilt(data,dtype,ds=0,vocal=False,plot=False): 
 	# INPUTS 
+	#	data is the dataset, either as: 
+	#	  m x 3 points (x,y,z) 
+	#	  m x n 2D array with no spatial reference 
+	#	dtype is the data type: 
+	#	  'points' or 'pts' 
+	#	  'image', 'img', or 'map' 
+	#	ds is the downsample factor (power of 2) 
+	#	  ... important for image data 
+	#	vocal = True/False 
+	#	plot  = True/False 
 	# OUTPUTS 
+	#	Tdata is the (un)tilted dataset 
 
 	# Calculate normal to data points  
 	Pln=fitPlane(data,dtype,ds=ds,vocal=vocal,plot=plot) 
