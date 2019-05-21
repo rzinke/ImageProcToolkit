@@ -268,6 +268,50 @@ def intCorr(I1,I2,window=None,vocal=False,plot=False):
 	return xshift, yshift 
 
 
+# --- Convert to binary --- 
+def binary(I,pct=50,value=None,low=0,high=1,ds=0,vocal=False): 
+	ds=int(2**ds); I=I[::ds,::ds] 
+	m,n=I.shape 
+	if value is not None: 
+		threshold=value # use strict value 
+	else: 
+		threshold=np.percentile(I,(pct)) # use percentage 
+	if vocal is True: 
+		print('Threshold: %.1f' % (threshold))
+	I[I<=threshold]=low 
+	I[I>threshold]=high 
+	if vocal is True: 
+		N0=np.sum(I==low) 
+		N1=np.sum(I==high) 
+	return I 
+
+# --- Erosion dilation --- 
+def erosionDilation(I,ErodeDilate,maskThreshold=0.5,
+	binaryPct=None,binaryValue=None,ds=0,vocal=False): 
+	# INPUTS 
+	#	I is the image (preferably binary) 
+	#	ErodeDilate is a switch 'erode'/'dilate' 
+	#	binaryPct, binaryValue initiate conversion to binary 
+	# OUTPUTS 
+	#	binary mask
+	ErodeDilate=ErodeDilate.lower() 
+	# Convert to 0,1 binary if required 
+	if binaryPct is not None and binaryValue is None: 
+		I=binary(I,pct=binaryPct,ds=ds,vocal=vocal) 
+	elif binaryValue is not None: 
+		I=binary(I,value=binaryValue,ds=ds,vocal=vocal) 
+	else: 
+		ds=int(2**ds); I=I[::ds,::ds] 
+	# Compute average window 
+	k=np.ones((3,3))/9 
+	C=sig.convolve2d(I,k,'same') 
+	if ErodeDilate=='erode': 
+		I[C<=maskThreshold]=0 
+	elif ErodeDilate=='dilate': 
+		I[C>=1-maskThreshold]=1 
+	return I   
+
+
 # --- Linear transform --- 
 def linearTransform(I,B0,B1,ds=0,interp_kind='linear',show_gamma=False):
 	ds=2**ds; I=I[::ds,::ds] 
