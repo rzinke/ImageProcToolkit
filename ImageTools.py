@@ -268,6 +268,24 @@ def intCorr(I1,I2,window=None,vocal=False,plot=False):
 	return xshift, yshift 
 
 
+# --- Convert to binary --- 
+def binary(I,pct=50,value=None,low=0,high=1,ds=0,vocal=False): 
+	ds=int(2**ds); I=I[::ds,::ds] 
+	m,n=I.shape 
+	if value is not None: 
+		threshold=value # use strict value 
+	else: 
+		threshold=np.percentile(I,(pct)) # use percentage 
+	if vocal is True: 
+		print('Threshold: %.1f' % (threshold))
+	I[I<=threshold]=low 
+	I[I>threshold]=high 
+	if vocal is True: 
+		N0=np.sum(I==low) 
+		N1=np.sum(I==high) 
+	return I 
+
+
 # --- Linear transform --- 
 def linearTransform(I,B0,B1,ds=0,interp_kind='linear',show_gamma=False):
 	ds=2**ds; I=I[::ds,::ds] 
