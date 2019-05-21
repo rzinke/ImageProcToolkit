@@ -285,6 +285,32 @@ def binary(I,pct=50,value=None,low=0,high=1,ds=0,vocal=False):
 		N1=np.sum(I==high) 
 	return I 
 
+# --- Erosion dilation --- 
+def erosionDilation(I,ErodeDilate,maskThreshold=0.5,
+	binaryPct=None,binaryValue=None,ds=0,vocal=False): 
+	# INPUTS 
+	#	I is the image (preferably binary) 
+	#	ErodeDilate is a switch 'erode'/'dilate' 
+	#	binaryPct, binaryValue initiate conversion to binary 
+	# OUTPUTS 
+	#	binary mask
+
+	# Convert to 0,1 binary if required 
+	if binaryPct is not None and binaryValue is None: 
+		I=binary(I,pct=binaryPct,ds=ds,vocal=vocal) 
+	elif binaryValue is not None: 
+		I=binary(I,value=binaryValue,ds=ds,vocal=vocal) 
+	else: 
+		ds=int(2**ds); I=I[::ds,::ds] 
+	# Compute average window 
+	k=np.ones((3,3))/9 
+	C=sig.convolve2d(I,k,'same') 
+	if ErodeDilate is 'erode': 
+		I[C<=maskThreshold]=0 
+	elif ErodeDilate is 'dilate': 
+		I[C>=1-maskThreshold]=1 
+	return I 
+
 
 # --- Linear transform --- 
 def linearTransform(I,B0,B1,ds=0,interp_kind='linear',show_gamma=False):
