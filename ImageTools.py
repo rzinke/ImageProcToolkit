@@ -294,7 +294,7 @@ def erosionDilation(I,ErodeDilate,maskThreshold=0.5,
 	#	binaryPct, binaryValue initiate conversion to binary 
 	# OUTPUTS 
 	#	binary mask
-
+	ErodeDilate=ErodeDilate.lower() 
 	# Convert to 0,1 binary if required 
 	if binaryPct is not None and binaryValue is None: 
 		I=binary(I,pct=binaryPct,ds=ds,vocal=vocal) 
@@ -305,11 +305,11 @@ def erosionDilation(I,ErodeDilate,maskThreshold=0.5,
 	# Compute average window 
 	k=np.ones((3,3))/9 
 	C=sig.convolve2d(I,k,'same') 
-	if ErodeDilate is 'erode': 
+	if ErodeDilate=='erode': 
 		I[C<=maskThreshold]=0 
-	elif ErodeDilate is 'dilate': 
+	elif ErodeDilate=='dilate': 
 		I[C>=1-maskThreshold]=1 
-	return I 
+	return I   
 
 
 # --- Linear transform --- 
