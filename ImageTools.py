@@ -1,4 +1,16 @@
-# Image processing filters 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Image processing algorithms 
+# by Rob Zinke, 2019 
+# 
+# In all cases: 
+#	I is the reference image 
+#	ds is the downsample factor (power of 2) 
+#	w is the kernel width 
+#	k is the intensity factor 
+#	d is direction 
+#	ktype is kernel type 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 import numpy as np 
 import matplotlib.pyplot as plt 
 from matplotlib.patches import Rectangle 
@@ -6,17 +18,17 @@ from matplotlib.patches import Circle
 from mpl_toolkits import mplot3d 
 from scipy import signal as sig 
 from scipy import interpolate as intp 
-from Gauss import * 
+from scipy import integrate 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# In all cases
-#  I is the reference image 
-#  ds is the downsample factor (power of 2) 
-#  w is the kernel width 
-#  k is the intensity factor 
-#  d is direction 
-#  ktype is kernel type 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# --- Formulae for later --- 
+def gauss(x,mu,sig):
+	g=1/(sig*np.sqrt(2*np.pi))*np.exp(-0.5*((x-mu)/sig)**2)
+	return g
+
+def erf(x,mu,sig):
+	g=gauss(x,mu,sig) # create Gaussian 
+	G=integrate.cumtrapz(g,x,initial=0) 
+	return G 
 
 
 ################################
