@@ -1,6 +1,4 @@
-#!/anaconda3/bin/python 
 # Image processing filters 
-
 import numpy as np 
 import matplotlib.pyplot as plt 
 from matplotlib.patches import Rectangle 
