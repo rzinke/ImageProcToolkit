@@ -214,6 +214,32 @@ def slope(I,dx=1.,dy=1.,ktype='sobel'):
 	aspect=90-aspect; aspect[aspect<0]+=360 
 	return slope, aspect 
 
+# --- Gradient --- 
+class grad: 
+	# dx is the cell size in x 
+	# dy is the cell size in y 
+	def __init__(self,I,dx,dy,ktype='scharr'): 
+		# Establish kernel 
+		ktype=ktype.lower(); self.ktype=ktype 
+		if ktype=='roberts': 
+			h=np.array([[0+1.j,1+0.j],[-1+0.j,0-1.j]]) 
+			h.real=h.real/(2*dx); h.imag=h.imag/(2*dy) 
+		elif ktype=='prewitt': 
+			h=np.array([[-1+1.j,0+1.j,1+1.j],
+						[-1+0.j,0+0.j,1+0.j],
+						[-1-1.j,0-1.j,1-1.j]]) 
+			h.real=h.real/(6*dx); h.imag=h.imag/(6*dy) 
+		elif ktype=='sobel': 
+			h=np.array([[-1+1.j,0+2.j,1+1.j],
+						[-2+0.j,0+0.j,2+0.j],
+						[-1-1.j,0-2.j,1-1.j]]) 
+			h.real=h.real/(8*dx); h.imag=h.imag/(8*dy) 
+		# Calculate gradient map 
+		G=sig.convolve(I,h,'same') 
+		self.dzdx=G.real 
+		self.dzdy=G.imag 
+		self.grad=np.abs(G) 
+
 
 ##################################
 ### --- Transforms Scaling --- ###
