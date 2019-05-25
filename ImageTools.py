@@ -202,7 +202,7 @@ def dzdy(I,dy=1.,ktype='sobel'):
 	dY=sig.convolve2d(I,h,'same')
 	return dY
 
-# --- Slope and 2D gradient ---
+# --- Slope and aspect ---
 def slope(I,dx=1.,dy=1.,ktype='sobel'):
 	# dx is x cell size
 	# dy is y cell size
@@ -363,6 +363,7 @@ def linearTransform(I,B0,B1,ds=0,interp_kind='linear',show_gamma=False):
 	# Output 
 	Itrans=Itrans.reshape(m,n) 
 	return Itrans 
+
 
 # --- Gaussian transform --- 
 def gaussTransform(I,A,B,ds=0,interp_kind='linear',show_gamma=False):
@@ -647,7 +648,6 @@ def untilt(data,dtype,ds=0,vocal=False,plot=False):
 	return Tdata 
 
 
-
 ###########################
 ### --- Compression --- ###
 ###########################
@@ -758,7 +758,13 @@ class svd_compress:
 
 # --- Basic statistics --- 
 class imgStats:
-	def __init__(self,I,pctmin=0,pctmax=100,hist=False): 
+	def __init__(self,I,pctmin=0,pctmax=100,vocal=False,hist=False): 
+		# Check if masked array 
+		try: 
+			I=I.compressed() 
+		except: 
+			pass 
+		# Convert to 1D array
 		I=np.reshape(I,(1,-1)).squeeze(0) # 1D array 
 		# Stats 
 		self.min=np.min(I)	   # min 
@@ -766,6 +772,13 @@ class imgStats:
 		self.mean=np.mean(I)	 # mean 
 		self.median=np.median(I) # median 
 		self.vmin,self.vmax=np.percentile(I,(pctmin,pctmax)) 
+		# Print stats 
+		if vocal is True: 
+			print('Image stats:') 
+			print('\tmin: %f, max: %f' % (self.min,self.max)) 
+			print('\tmean: %f' % (self.mean)) 
+			print('\tmedian: %f' % (self.median)) 
+			print('\tvmin: %f, vmax: %f' % (self.vmin,self.vmax)) 
 		# Histogram 
 		if hist is not False: 
 			if type(hist)==int: 
