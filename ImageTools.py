@@ -169,13 +169,13 @@ def dzdx(I,dx=1.,ktype='sobel'):
 		h=np.array([[0.,1.],[-1.,0.]])
 		h=h/(2*dx)
 	elif ktype=='prewitt':
-		h=np.array([[-1.,0.,1.],[-1.,0.,1.],[-1.,0.,1.]])
+		h=np.array([[1.,0.,-1.],[1.,0.,-1.],[1.,0.,-1.]])
 		h=h/(6*dx)
 	elif ktype=='sobel':
-		h=np.array([[-1.,0.,1.],[-2.,0.,2.],[-1.,0.,1.]])
+		h=np.array([[1.,0.,-1.],[2.,0.,-2.],[1.,0.,-1.]])
 		h=h/(8*dx) # divide by cell spacing in x
 	elif ktype=='scharr':
-		h=np.array([[-3.,0.,3.],[-10,0.,10],[-3.,0.,3.]])
+		h=np.array([[3.,0.,-3.],[10,0.,-10],[3.,0.,-3.]])
 		h=h/(32*dx)
 	else: 
 		print('Kernel types: roberts,prewitt,sobel,scharr')
@@ -210,8 +210,9 @@ def slope(I,dx=1.,dy=1.,ktype='sobel'):
 	dY=dzdy(I,dy=dy,ktype=ktype)
 	dZ=np.sqrt(dX**2+dY**2)
 	slope=np.rad2deg(np.arctan(dZ))
-	aspect=np.rad2deg(np.arctan2(dY,dX)) 
-	aspect=90-aspect; aspect[aspect<0]+=360 
+	aspect=np.rad2deg(np.arctan2(dX,dY)) 
+	aspect[aspect>0]=360-aspect[aspect>0] 
+	aspect[aspect<0]=-aspect[aspect<0] 
 	return slope, aspect 
 
 # --- Gradient --- 
@@ -225,20 +226,25 @@ class grad:
 			h=np.array([[0+1.j,1+0.j],[-1+0.j,0-1.j]]) 
 			h.real=h.real/(2*dx); h.imag=h.imag/(2*dy) 
 		elif ktype=='prewitt': 
-			h=np.array([[-1+1.j,0+1.j,1+1.j],
-						[-1+0.j,0+0.j,1+0.j],
-						[-1-1.j,0-1.j,1-1.j]]) 
+			h=np.array([[1+1.j,0+1.j,-1+1.j],
+						[1+0.j,0+0.j,-1+0.j],
+						[1-1.j,0-1.j,-1-1.j]]) 
 			h.real=h.real/(6*dx); h.imag=h.imag/(6*dy) 
 		elif ktype=='sobel': 
-			h=np.array([[-1+1.j,0+2.j,1+1.j],
-						[-2+0.j,0+0.j,2+0.j],
-						[-1-1.j,0-2.j,1-1.j]]) 
+			h=np.array([[1+1.j,0+2.j,-1+1.j],
+						[2+0.j,0+0.j,-2+0.j],
+						[1-1.j,0-2.j,-1-1.j]]) 
 			h.real=h.real/(8*dx); h.imag=h.imag/(8*dy) 
+		elif ktype=='scharr': 
+			h=np.array([[3+3.j,0+10.j,-3+3.j],
+						[10+0.j,0+0.j,-10+0.j],
+						[3-3.j,0-10.j,-3-3.j]])
 		# Calculate gradient map 
 		G=sig.convolve(I,h,'same') 
 		self.dzdx=G.real 
 		self.dzdy=G.imag 
 		self.grad=np.abs(G) 
+		self.az=np.angle(G) 
 
 
 ##################################
