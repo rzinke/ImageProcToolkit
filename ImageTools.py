@@ -157,7 +157,6 @@ def spectrum(I,dx=1,coords='polar',vocal=False):
 	ax2.set_title(LabelB) 
 	F.colorbar(cax2,orientation='horizontal') 
 
-
 # --- Rudimentary frequency filter --- 
 def freqFilt(I,fcut,dx=1,taper=None,ftype='low',vocal=False,plot=False): 
 	m,n=I.shape 
@@ -841,6 +840,49 @@ class svd_compress:
 		ax3.set_xticks([]); ax3.set_yticks([]) 
 		F.colorbar(cax3,orientation='horizontal')  
 		ax3.set_title('Diff') 
+
+# --- FFT compression --- 
+class fft_compress: 
+	# R is the compression ratio [0.0,1.0) 
+	def __init__(self,I,R,vocal=False,plot=False): 
+		# Setup 
+		m,n=I.shape # original image dimensions 
+		self.orig_size=m*n # original image size 
+		# Fourier transform 
+		IF=np.fft.fft2(I) # FFT 
+		IF=np.fft.fftshift(IF) # center low freqs 
+		# Reduced dimensions 
+		m2=m/2; n2=n/2 # middle values 
+		Rm2=int(R*m2); Rn2=int(R*n2) # reduced values 
+		# Reduce to smaller array 
+		IFr=IF[Rm2:-Rm2,Rn2:-Rn2] # dimensions to keep 
+		R=np.fft.fftshift(IFr) # shift low freq back to outside 
+		self.R=R # add to object 
+		# Final stats 
+		mr,nr=R.shape # reduced dimensions 
+		self.orig_size=m*n # original size 
+		self.reduc_size=mr*nr # reduced size 
+		# Vocal if requested 
+		if vocal is True: 
+			print('\tOriginal dimensions: %i x %i' % (m,n)) 
+			print('\t\t%i px' % (self.orig_size))  
+			print('\tReduced dimensions: %i x %i' % (mr,nr)) 
+			print('\t\t%i px' % (self.reduc_size)) 
+		# Plot spectrum if requested 
+		if plot is True: 
+			F=plt.figure() 
+			ax1=F.add_subplot(1,2,1) 
+			cax1=ax1.imshow(np.log10(np.abs(IF))) 
+			F.colorbar(cax1,orientation='horizontal') 
+			ax1.set_title('Orig spectrum\n(%.2e px)' % (self.orig_size)) 
+			ax2=F.add_subplot(1,2,2) 
+			cax2=ax2.imshow(np.log10(np.abs(IFr))) 
+			F.colorbar(cax2,orientation='horizontal') 
+			ax2.set_title('Reduc. spectrum\n(%.2e px)' % (self.reduc_size)) 
+	def reconst(self): 
+		# Transform back to spatial domain 
+		I=np.fft.ifft2(self.R) # inverse FFT 
+		self.I=I.real # add real component to object 
 
 
 ###############################
