@@ -158,6 +158,65 @@ def spectrum(I,dx=1,coords='polar',vocal=False):
 	F.colorbar(cax2,orientation='horizontal') 
 
 
+# --- Rudimentary frequency filter --- 
+def freqFilt(I,fcut,dx=1,taper=None,ftype='low',vocal=False,plot=False): 
+	m,n=I.shape 
+	m2=m/2; n2=n/2 # half-widths 
+	# Sample rates 
+	fs=1/dx   # sampling frequency 
+	fN=0.5*fs # Nyquist frequency 
+	# Fourier domain 
+	IF=np.fft.fft2(I) 
+	IF=np.fft.fftshift(IF) 
+	IFcut=IF.copy() 
+	if taper is None: 
+		xcut1=int(n2-n2*fcut) 
+		xcut2=int(n2+n2*fcut) 
+		ycut1=int(m2-m2*fcut) 
+		ycut2=int(m2+m2*fcut) 
+		K=np.zeros((m,n)) # empty filter kernel 
+		K[ycut1:ycut2,xcut1:xcut2]=1. 
+	elif taper is 'gauss': 
+		x=gauss(np.linspace(-n2,n2,n),0,n2*fcut) 
+		x=x/x.max() 
+		y=gauss(np.linspace(-m2,m2,m),0,m2*fcut) 
+		y=y/y.max() 
+		K=np.dot(y.reshape(-1,1),x.reshape(1,-1)) 
+		print('Does not work yet') 
+	if ftype.lower()=='hi' or ftype.lower()=='high': 
+		K=1-K 
+		print('hipass')
+	IFcut=K*IFcut 
+	# Outputs 
+	if vocal is True: 
+		print('Image shape: %i x %i' % (m,n)) 
+		print('Frequency filter') 
+		print('\tsample width: %f' % dx) 
+		print('\tsample  freq: %f' % fs) 
+		print('\tNyquist freq: %f' % fN) 
+		print('\tcutoff  freq: %f' % fcut)
+	if plot is True: 
+		# Mask array 
+		IFcut[IFcut==0.]=1E-9 # no zeros for plotting 
+		IFcut=np.ma.array(IFcut,mask=(K==0)) 
+		# Plot 
+		F=plt.figure() 
+		ax1=F.add_subplot(1,3,1) 
+		cax1=ax1.imshow(np.log10(np.abs(IF))) 
+		F.colorbar(cax1,orientation='horizontal')
+		ax2=F.add_subplot(1,3,2) 
+		cax2=ax2.imshow(K) 
+		F.colorbar(cax2,orientation='horizontal')
+		ax3=F.add_subplot(1,3,3) 
+		cax3=ax3.imshow(np.log10(np.abs(IFcut))) 
+		F.colorbar(cax3,orientation='horizontal')
+	# Reconstruct image 
+	IFcut=np.fft.ifftshift(IFcut) 
+	I=np.fft.ifft2(IFcut) 
+	I=I.real 
+	return I 
+
+
 ###############################
 ### --- Slope/gradients --- ###
 ###############################
