@@ -765,6 +765,7 @@ class imgStats:
 		self.max=np.max(I)	   # max 
 		self.mean=np.mean(I)	 # mean 
 		self.median=np.median(I) # median 
+		self.std=np.std(I)     # standard deviation 
 		self.vmin,self.vmax=np.percentile(I,(pctmin,pctmax)) 
 		# Histogram 
 		if hist is not False: 
@@ -790,7 +791,8 @@ class imgStats:
 			plt.legend() 
 
 # --- Standard deviation --- 
-def imgSD(I,w=3):  
+def imgSD(I,w=3,ds=0): 
+	ds=int(2**ds); I=I[::ds,::ds]  
 	N=w**2 # points per cell 
 	h=np.ones((w,w))/N 
 	EX=sig.convolve2d(I,h,'same') 
