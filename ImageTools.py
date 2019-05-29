@@ -169,13 +169,13 @@ def dzdx(I,dx=1.,ktype='sobel'):
 		h=np.array([[0.,1.],[-1.,0.]])
 		h=h/(2*dx)
 	elif ktype=='prewitt':
-		h=np.array([[-1.,0.,1.],[-1.,0.,1.],[-1.,0.,1.]])
+		h=np.array([[1.,0.,-1.],[1.,0.,-1.],[1.,0.,-1.]])
 		h=h/(6*dx)
 	elif ktype=='sobel':
-		h=np.array([[-1.,0.,1.],[-2.,0.,2.],[-1.,0.,1.]])
+		h=np.array([[1.,0.,-1.],[2.,0.,-2.],[1.,0.,-1.]])
 		h=h/(8*dx) # divide by cell spacing in x
 	elif ktype=='scharr':
-		h=np.array([[-3.,0.,3.],[-10,0.,10],[-3.,0.,3.]])
+		h=np.array([[3.,0.,-3.],[10,0.,-10],[3.,0.,-3.]])
 		h=h/(32*dx)
 	else: 
 		print('Kernel types: roberts,prewitt,sobel,scharr')
@@ -202,7 +202,7 @@ def dzdy(I,dy=1.,ktype='sobel'):
 	dY=sig.convolve2d(I,h,'same')
 	return dY
 
-# --- Slope and 2D gradient ---
+# --- Slope and aspect ---
 def slope(I,dx=1.,dy=1.,ktype='sobel'):
 	# dx is x cell size
 	# dy is y cell size
@@ -210,9 +210,41 @@ def slope(I,dx=1.,dy=1.,ktype='sobel'):
 	dY=dzdy(I,dy=dy,ktype=ktype)
 	dZ=np.sqrt(dX**2+dY**2)
 	slope=np.rad2deg(np.arctan(dZ))
-	aspect=np.rad2deg(np.arctan2(dY,dX)) 
-	aspect=90-aspect; aspect[aspect<0]+=360 
+	aspect=np.rad2deg(np.arctan2(dX,dY)) 
+	aspect[aspect>0]=360-aspect[aspect>0] 
+	aspect[aspect<0]=-aspect[aspect<0] 
 	return slope, aspect 
+
+# --- Gradient --- 
+class grad: 
+	# dx is the cell size in x 
+	# dy is the cell size in y 
+	def __init__(self,I,dx,dy,ktype='scharr'): 
+		# Establish kernel 
+		ktype=ktype.lower(); self.ktype=ktype 
+		if ktype=='roberts': 
+			h=np.array([[0+1.j,1+0.j],[-1+0.j,0-1.j]]) 
+			h.real=h.real/(2*dx); h.imag=h.imag/(2*dy) 
+		elif ktype=='prewitt': 
+			h=np.array([[1+1.j,0+1.j,-1+1.j],
+						[1+0.j,0+0.j,-1+0.j],
+						[1-1.j,0-1.j,-1-1.j]]) 
+			h.real=h.real/(6*dx); h.imag=h.imag/(6*dy) 
+		elif ktype=='sobel': 
+			h=np.array([[1+1.j,0+2.j,-1+1.j],
+						[2+0.j,0+0.j,-2+0.j],
+						[1-1.j,0-2.j,-1-1.j]]) 
+			h.real=h.real/(8*dx); h.imag=h.imag/(8*dy) 
+		elif ktype=='scharr': 
+			h=np.array([[3+3.j,0+10.j,-3+3.j],
+						[10+0.j,0+0.j,-10+0.j],
+						[3-3.j,0-10.j,-3-3.j]])
+		# Calculate gradient map 
+		G=sig.convolve(I,h,'same') 
+		self.dzdx=G.real 
+		self.dzdy=G.imag 
+		self.grad=np.abs(G) 
+		self.az=np.angle(G) 
 
 
 ##################################
@@ -363,6 +395,7 @@ def linearTransform(I,B0,B1,ds=0,interp_kind='linear',show_gamma=False):
 	# Output 
 	Itrans=Itrans.reshape(m,n) 
 	return Itrans 
+
 
 # --- Gaussian transform --- 
 def gaussTransform(I,A,B,ds=0,interp_kind='linear',show_gamma=False):
@@ -647,7 +680,6 @@ def untilt(data,dtype,ds=0,vocal=False,plot=False):
 	return Tdata 
 
 
-
 ###########################
 ### --- Compression --- ###
 ###########################
@@ -758,7 +790,13 @@ class svd_compress:
 
 # --- Basic statistics --- 
 class imgStats:
-	def __init__(self,I,pctmin=0,pctmax=100,hist=False): 
+	def __init__(self,I,pctmin=0,pctmax=100,vocal=False,hist=False): 
+		# Check if masked array 
+		try: 
+			I=I.compressed() 
+		except: 
+			pass 
+		# Convert to 1D array
 		I=np.reshape(I,(1,-1)).squeeze(0) # 1D array 
 		# Stats 
 		self.min=np.min(I)	   # min 
@@ -767,6 +805,13 @@ class imgStats:
 		self.median=np.median(I) # median 
 		self.std=np.std(I)     # standard deviation 
 		self.vmin,self.vmax=np.percentile(I,(pctmin,pctmax)) 
+		# Print stats 
+		if vocal is True: 
+			print('Image stats:') 
+			print('\tmin: %f, max: %f' % (self.min,self.max)) 
+			print('\tmean: %f' % (self.mean)) 
+			print('\tmedian: %f' % (self.median)) 
+			print('\tvmin: %f, vmax: %f' % (self.vmin,self.vmax)) 
 		# Histogram 
 		if hist is not False: 
 			if type(hist)==int: 
