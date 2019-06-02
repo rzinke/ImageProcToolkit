@@ -845,8 +845,14 @@ class svd_compress:
 class fft_compress: 
 	# R is the compression ratio [0.0,1.0) 
 	def __init__(self,I,R,vocal=False,plot=False): 
+		# Check x,y dims are even numbers 
+		m,n=I.shape 
+		if m%2 is not 0: 
+			I=I[:-1] # make even 
+		if n%2 is not 0: 
+			I=I[:-1] # make even 
 		# Setup 
-		m,n=I.shape # original image dimensions 
+		m,n=I.shape # original image dimensions (even) 
 		self.orig_size=m*n # original image size 
 		# Fourier transform 
 		IF=np.fft.fft2(I) # FFT 
