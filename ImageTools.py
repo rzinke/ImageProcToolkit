@@ -30,6 +30,22 @@ def erf(x,mu,sig):
 	G=integrate.cumtrapz(g,x,initial=0) 
 	return G 
 
+# --- Quick plot --- 
+# Plot a single image for later 
+def quickPlot(I,cmap='Greys_r',title=None,colorbar=False): 
+	F=plt.figure() # spawn new figure 
+	ax=F.add_subplot(111) # add axis 
+	cax=ax.imshow(I,cmap=cmap) # plot image 
+	ax.set_xticks([]); ax.set_yticks([]) # remove tick marks 
+	if title is not None: 
+		ax.set_title(title) 
+	if colorbar is not False: 
+		if colorbar in ['horizontal']: 
+			orientation='horizontal' 
+		else: 
+			orientation='vertical' 
+		F.colobar(cax,orientation=orientation)
+
 
 ################################
 ### --- Standard Filters --- ###
@@ -157,7 +173,7 @@ def spectrum(I,dx=1,coords='polar',vocal=False):
 	ax2.set_title(LabelB) 
 	F.colorbar(cax2,orientation='horizontal') 
 
-# --- Rudimentary frequency filter --- 
+# --- Basic frequency filter --- 
 def freqFilt(I,fcut,dx=1,taper=None,ftype='low',vocal=False,plot=False): 
 	m,n=I.shape 
 	m2=m/2; n2=n/2 # half-widths 
@@ -181,15 +197,15 @@ def freqFilt(I,fcut,dx=1,taper=None,ftype='low',vocal=False,plot=False):
 		y=gauss(np.linspace(-m2,m2,m),0,m2*fcut) 
 		y=y/y.max() 
 		K=np.dot(y.reshape(-1,1),x.reshape(1,-1)) 
-		print('Does not work yet') 
+		K=K/K.max() 
 	if ftype.lower()=='hi' or ftype.lower()=='high': 
 		K=1-K 
-		print('hipass')
 	IFcut=K*IFcut 
 	# Outputs 
 	if vocal is True: 
 		print('Image shape: %i x %i' % (m,n)) 
 		print('Frequency filter') 
+		print('\tMode: %s' % (ftype))
 		print('\tsample width: %f' % dx) 
 		print('\tsample  freq: %f' % fs) 
 		print('\tNyquist freq: %f' % fN) 
@@ -1162,6 +1178,74 @@ def variogram(I,H,N=1000,BG=0,vocal=False,plotImg=False,plotVar=False):
 
 	return SVAR, SCOV, SDIF 
 
+
+########################
+### --- Blending --- ###
+########################
+
+# --- Linear ramp to image edges --- 
+def linearBlend(I1,I2,plot=False): 
+	# Setup 
+	assert I1.shape == I2.shape; Exception: 'I1 and I2 must be same size' 
+	m,n=I1.shape # original shape 
+	# d=np.sqrt(m**2+n**2) # diagonal dimension 
+	# Dimensions and sampling grid 
+	m2=int(m/2); n2=int(n/2) 
+	x=np.linspace(-1,1,n) 
+	y=np.linspace(-1,1,m) 
+	X,Y=np.meshgrid(x,y)
+	# Blending factor 
+	D2=np.sqrt(X**2+Y**2)/np.sqrt(2) 
+	D1=1-D2 
+	# Blend image 
+	B=I1*D1+I2*D2  
+	# Plot if desired 
+	if plot is True: 
+		F=plt.figure() 
+		extent=(-n2,n2,-m2,m2)
+		ax=F.add_subplot(111) 
+		ax.imshow(I1,cmap='Greys_r',extent=extent,zorder=1) 
+		ax.axhline(0,zorder=2) # central y-axis 
+		ax.axvline(0,zorder=2) # central x-axis 
+		ax.imshow(D1,cmap='viridis',extent=extent,alpha=0.5,zorder=3) 
+	return B 
+
+# --- Gaussian ramp --- 
+def gaussBlend(I1,I2,d='auto',c=None,plot=False): 
+	# Setup 
+	assert I1.shape == I2.shape; Exception: 'I1 and I2 must be same size' 
+	m,n=I1.shape # original shape 
+	m2=int(m/2); n2=int(n/2) # centers of map 
+	# Kernel center 
+	if c is not None: 
+		cx=c[0]; cy=c[1] # user-specified 
+	else: 
+		cx=n2; cy=m2 # map center 
+	# Kernel width 
+	if d is not 'auto': 
+		# d is the 3-sigma width of the blending mask 
+		d=d/3 
+	else: 
+		d=min([m,n])/3 
+	# Sampling grid 
+	x=np.arange(n); y=np.arange(m) 
+	x=gauss(x,cx,d) 
+	y=gauss(y,cy,d) 
+	# Blending factor 
+	D1=y.reshape(-1,1).dot(x.reshape(1,-1)) 
+	D1=D1-D1.min(); D1=D1/D1.max() 
+	D2=1-D1 
+	# Blend image 
+	B=I1*D1+I2*D2 
+	# Plot if desired 
+	if plot is True: 
+		F=plt.figure() 
+		ax=F.add_subplot(111) 
+		ax.imshow(I1,cmap='Greys_r',zorder=1) 
+		ax.axhline(cy,zorder=2) # central y-axis 
+		ax.axvline(cx,zorder=2) # central x-axis 
+		ax.imshow(D1,cmap='viridis',alpha=0.3,zorder=3) 
+	return B 
 
 
 
