@@ -401,6 +401,7 @@ def binary(I,pct=50,value=None,low=0,high=1,ds=0,vocal=False):
 		N1=np.sum(I==high) 
 	return I 
 
+
 # --- Erosion dilation --- 
 def erosionDilation(I,ErodeDilate,maskThreshold=0.5,
 	binaryPct=None,binaryValue=None,ds=0,vocal=False): 
@@ -429,7 +430,8 @@ def erosionDilation(I,ErodeDilate,maskThreshold=0.5,
 
 
 # --- Linear transform --- 
-def linearTransform(I,B0,B1,ds=0,interp_kind='linear',show_gamma=False):
+def linearTransform(I,B0,B1,ds=0,interp_kind='linear',show_gamma=False): 
+	# Setup 
 	ds=2**ds; I=I[::ds,::ds] 
 	m=I.shape[0]; n=I.shape[1] 
 	I=I.reshape(1,-1) 
@@ -444,28 +446,36 @@ def linearTransform(I,B0,B1,ds=0,interp_kind='linear',show_gamma=False):
 	Itrans[Itrans>255]=255 
 
 	# Plot histogram? 
-	if show_gamma is True: 
+	if show_gamma is not False: 
+		# Determine number of bins 
+		if type(show_gamma)==int: 
+			nbins=show_gamma 
+		else: 
+			nbins=255 
 		# Compute histograms 
-		H1,H1edges=np.histogram(I,bins=int(256/4)) 
-		H1centers=H1edges[:-1]+np.diff(H1edges)/2 
-		H2,H2edges=np.histogram(Itrans,bins=int(256/4)) 
-		H2centers=H2edges[:-1]+np.diff(H2edges)/2 
-
-		# Resolving power 
-		R=np.zeros(H1centers.shape) 
-		R[(B1*H1centers+B0)<=255]=1. 
-		R=H1*R 
-
+		H1,H1edges=np.histogram(I,bins=nbins) 
+		H1cntrs=H1edges[:-1]+np.diff(H1edges)/2 
+		H2,H2edges=np.histogram(Itrans,bins=nbins) 
+		H2cntrs=H2edges[:-1]+np.diff(H2edges)/2 
+		# Format curves 
+		H1cntrs=np.pad(H1cntrs,(1,1),'constant',
+			constant_values=(H1edges[0],H1edges[-1])) 
+		H1=np.pad(H1,(1,1),'constant'); H1=255*H1/H1.max() 
+		H2cntrs=np.pad(H2cntrs,(1,1),'constant',
+			constant_values=(H2edges[0],H2edges[-1])) 
+		H2=np.pad(H2,(1,1),'constant'); H2=255*H2/H2.max() 
+		# Relative resolving power 
+		R=B1*H1 
+		R[H1cntrs<=-B0/B1]=0.; R[H1cntrs>=(255-B0)/B1]=0. 
 		# Plot curves 
 		FigG=plt.figure('Linear Transform') 
 		ax1=FigG.add_subplot(111) # Gamma curve 
 		cax1=ax1.plot(x,G,'r',linewidth=2) 
 		ax1.axis((0,255,0,255));ax1.set_aspect(1) 
-		ax1.plot(H1centers,255*H1/H1.max(),'k',linewidth=2,label='orig') 
-		ax1.plot(H2centers,255*H2/H2.max(),color=(0,0,0.7),linewidth=2,label='tranf') 
-		ax1.plot(H1centers,255*R/R.max(),'g--',label='reslv')
+		ax1.fill(H1cntrs,H1,color=(0.4,0.5,0.5),alpha=1,label='orig') 
+		ax1.plot(H1cntrs,R,'g--',label='reslv') 
+		ax1.fill(H2cntrs,H2,color=(0,0,1),alpha=0.5,label='trnsf') 
 		ax1.legend()  
-
 	# Output 
 	Itrans=Itrans.reshape(m,n) 
 	return Itrans 
@@ -473,6 +483,7 @@ def linearTransform(I,B0,B1,ds=0,interp_kind='linear',show_gamma=False):
 
 # --- Gaussian transform --- 
 def gaussTransform(I,A,B,ds=0,interp_kind='linear',show_gamma=False):
+	# Setup 
 	ds=2**ds; I=I[::ds,::ds] 
 	m=I.shape[0]; n=I.shape[1] 
 	I=I.reshape(1,-1) 
@@ -487,24 +498,35 @@ def gaussTransform(I,A,B,ds=0,interp_kind='linear',show_gamma=False):
 	Itrans[Itrans>255]=255
 
 	# Plot histogram? 
-	if show_gamma is True: 
+	if show_gamma is not False: 
+		# Determine number of bins 
+		if type(show_gamma)==int: 
+			nbins=show_gamma 
+		else: 
+			nbins=255 
 		# Compute histograms 
 		H1,H1edges=np.histogram(I,bins=int(256/4)) 
-		H1centers=H1edges[:-1]+np.diff(H1edges)/2 
+		H1cntrs=H1edges[:-1]+np.diff(H1edges)/2 
 		H2,H2edges=np.histogram(Itrans,bins=int(256/4)) 
-		H2centers=H2edges[:-1]+np.diff(H2edges)/2 
-
-		# Resolving power 
-		R=H1*gauss(H1centers,A,B) 
+		H2cntrs=H2edges[:-1]+np.diff(H2edges)/2 
+		# Format curves 
+		H1cntrs=np.pad(H1cntrs,(1,1),'constant',
+			constant_values=(H1edges[0],H1edges[-1])) 
+		H1=np.pad(H1,(1,1),'constant'); H1=255*H1/H1.max() 
+		H2cntrs=np.pad(H2cntrs,(1,1),'constant',
+			constant_values=(H2edges[0],H2edges[-1])) 
+		H2=np.pad(H2,(1,1),'constant'); H2=255*H2/H2.max() 
+		# Relative resolving power 
+		R=H1*gauss(H1cntrs,A,B); R=255*R/R.max() 
 
 		# Plot curves 
 		FigG=plt.figure('Gaussian Transform') 
 		ax1=FigG.add_subplot(111) # Gamma curve 
 		cax1=ax1.plot(x,G,'r',linewidth=2) 
 		ax1.axis((0,255,0,255));ax1.set_aspect(1) 
-		ax1.plot(H1centers,255*H1/H1.max(),'k',linewidth=2,label='orig') 
-		ax1.plot(H2centers,255*H2/H2.max(),color=(0,0,0.7),linewidth=2,label='tranf') 
-		ax1.plot(H1centers,255*R/R.max(),'g--',label='resvl')
+		ax1.fill(H1cntrs,H1,color=(0.4,0.5,0.5),alpha=1,label='orig') 
+		ax1.plot(H1cntrs,R,'g--',label='resvl')
+		ax1.fill(H2cntrs,H2,color=(0,0,1.0),alpha=0.5,label='trnsf') 
 		ax1.legend() 
 
 	# Output 
@@ -948,14 +970,22 @@ class imgStats:
 			I=I[(I>=self.vmin) & (I<=self.vmax)] 
 			H,Hedges=np.histogram(I,bins=nbins) 
 			Hcntrs=Hedges[:-1]+np.diff(Hedges)/2 
+			# Plot 
 			plt.figure() 
+			# Plot CDF 
 			plt.subplot(2,1,1) 
 			plt.axhline(pctmin/100,color=(0.5,0.5,0.5))
 			plt.axhline(pctmax/100,color=(0.5,0.5,0.5)) 
 			plt.plot(H0cntrs,np.cumsum(H0)/np.sum(H0),'k') 
+			# Pad 
+			H0cntrs=np.pad(H0cntrs,(1,1),'edge')
+			H0=np.pad(H0,(1,1),'constant') 
+			Hcntrs=np.pad(Hcntrs,(1,1),'edge')
+			H=np.pad(H,(1,1),'constant') 
+			# Plot PDF 
 			plt.subplot(2,1,2)  
-			plt.plot(Hcntrs,H0,'k',label='orig') 
-			plt.plot(Hcntrs,H,'r',label='new') 
+			plt.fill(H0cntrs,H0,color=(0.4,0.5,0.5),alpha=1,label='orig') 
+			plt.bar(Hcntrs,H,color='r',alpha=0.5,label='new') 
 			plt.legend() 
 
 # --- Standard deviation --- 
