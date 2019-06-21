@@ -596,29 +596,30 @@ def binary(I,pct=50,value=None,low=0,high=1,ds=0,vocal=False):
 
 # --- Erosion dilation --- 
 def erosionDilation(I,ErodeDilate,maskThreshold=0.5,
-	binaryPct=None,binaryValue=None,ds=0,vocal=False): 
-	# INPUTS 
-	#	I is the image (preferably binary) 
-	#	ErodeDilate is a switch 'erode'/'dilate' 
-	#	binaryPct, binaryValue initiate conversion to binary 
-	# OUTPUTS 
+	binaryPct=None,binaryValue=None,ds=0,vocal=False):
+	# INPUTS
+	#	I is the image (preferably binary)
+	#	ErodeDilate is a switch 'erode'/'dilate'
+	#	binaryPct, binaryValue initiate conversion to binary
+	# OUTPUTS
 	#	binary mask
-	ErodeDilate=ErodeDilate.lower() 
+	Iout=I.copy()
+	ErodeDilate=ErodeDilate.lower()
 	# Convert to 0,1 binary if required 
 	if binaryPct is not None and binaryValue is None: 
-		I=binary(I,pct=binaryPct,ds=ds,vocal=vocal) 
-	elif binaryValue is not None: 
-		I=binary(I,value=binaryValue,ds=ds,vocal=vocal) 
-	else: 
-		ds=int(2**ds); I=I[::ds,::ds] 
+		Iout=binary(I,pct=binaryPct,ds=ds,vocal=vocal) 
+	elif binaryValue is not None:
+		Iout=binary(I,value=binaryValue,ds=ds,vocal=vocal)
+	else:
+		ds=int(2**ds); Iout=I[::ds,::ds]
 	# Compute average window 
 	k=np.ones((3,3))/9 
-	C=sig.convolve2d(I,k,'same') 
+	C=sig.convolve2d(Iout,k,'same') 
 	if ErodeDilate=='erode': 
-		I[C<=maskThreshold]=0 
+		Iout[C<=maskThreshold]=0 
 	elif ErodeDilate=='dilate': 
-		I[C>=1-maskThreshold]=1 
-	return I   
+		Iout[C>=1-maskThreshold]=1 
+	return Iout  
 
 # --- Linear transform --- 
 def linearTransform(I,B0,B1,ds=0,interp_kind='linear',show_gamma=False): 
@@ -673,27 +674,24 @@ def linearTransform(I,B0,B1,ds=0,interp_kind='linear',show_gamma=False):
 
 # --- Gaussian transform --- 
 def gaussTransform(I,A,B,ds=0,interp_kind='linear',show_gamma=False):
-	# Setup 
-	ds=2**ds; I=I[::ds,::ds] 
-	m=I.shape[0]; n=I.shape[1] 
-	I=I.reshape(1,-1) 
-
+	# Setup
+	ds=2**ds; I=I[::ds,::ds]
+	m=I.shape[0]; n=I.shape[1]
+	I=I.reshape(1,-1)
 	# Transform curve 
-	x=np.arange(0,256) 
-	G=255*erf(x,A,B) # Gaussian error function 
-
-	F=intp.interp1d(x,G,kind=interp_kind) 
-	Itrans=F(I) 
-	Itrans[Itrans<0]=0 
+	x=np.arange(0,256)
+	G=255*erf(x,A,B) # Gaussian error function
+	F=intp.interp1d(x,G,kind=interp_kind)
+	Itrans=F(I)
+	Itrans[Itrans<0]=0
 	Itrans[Itrans>255]=255
-
-	# Plot histogram? 
-	if show_gamma is not False: 
-		# Determine number of bins 
-		if type(show_gamma)==int: 
-			nbins=show_gamma 
-		else: 
-			nbins=255 
+	# Plot histogram?
+	if show_gamma is not False:
+		# Determine number of bins
+		if type(show_gamma)==int:
+			nbins=show_gamma
+		else:
+			nbins=255
 		# Compute histograms 
 		H1,H1edges=np.histogram(I,bins=int(256/4)) 
 		H1cntrs=H1edges[:-1]+np.diff(H1edges)/2 
@@ -718,7 +716,6 @@ def gaussTransform(I,A,B,ds=0,interp_kind='linear',show_gamma=False):
 		ax1.plot(H1cntrs,R,'g--',label='resvl')
 		ax1.fill(H2cntrs,H2,color=(0,0,1.0),alpha=0.5,label='trnsf') 
 		ax1.legend() 
-
 	# Output 
 	Itrans=Itrans.reshape(m,n) 
 	return Itrans 
