@@ -46,6 +46,66 @@ def quickPlot(I,cmap='Greys_r',title=None,colorbar=False):
 			orientation='vertical' 
 		F.colobar(cax,orientation=orientation)
 
+def kmeans(data,k,max_iterations=20,centroids='auto',vocal=False,plot=False):
+	# INPUTS
+	#	data are the data for which the clusters are to be analyzed
+	#	 each column is a dimension in space
+	#	k is the number of clusters
+	#	max_iterations is the maximum number of iterations, otherwise
+	#	 the routine will cease when convergence is reached
+	#	centroids can either be pre-defined or chosen at random
+	# OUTPUTS
+	#	Centroids is the matrix of means
+
+	# Setup
+	dataMin=np.min(data,axis=0)
+	dataMax=np.max(data,axis=0)
+	dataShape=data.shape
+	np.random.seed(0)
+	Dists=np.zeros((dataShape[0],k))
+	# Pick initial centroids
+	if centroids in 'auto':
+		Centroids=np.linspace(dataMin,dataMax,k)
+	Centroids_new=np.zeros((k,dataShape[1]))
+	if vocal is True:
+		print('Initial centroids:\n',Centroids)
+	# Find closest centroids
+	def find_closest_centroid(data,k):
+		for i in range(k):
+			# Subract each centroid from the data
+			#  and compute Euclidean distance
+			Dists[:,i]=np.linalg.norm(data-Centroids[i,:],
+				ord=dataShape[1],axis=1)
+		return Dists
+	# Loop through iterations
+	while(max_iterations): # for each iteration...
+	# 1. Calculate distance to points
+		Dists=find_closest_centroid(data,k)
+		Centroid_ndx=np.argmin(Dists,axis=1)
+		if vocal is True:
+			print('Distances\n',np.hstack([Dists,Centroid_ndx.reshape(-1,1)]))
+	# 2. Assign data points to centroids
+		for j in range(k):
+			cluster_mean=np.mean(data[Centroid_ndx==j],axis=0)
+			if vocal is True:
+				print('cluster means\n',cluster_mean)
+			Centroids_new[j,:]=cluster_mean
+		if not np.sum(Centroids_new-Centroids):
+			break
+		Centroids=Centroids_new
+		max_iterations-=1
+	# Plot
+	Dists=find_closest_centroid(data,k) # final calculation
+	Centroid_ndx=np.argmin(Dists,axis=1) # final indices
+	if plot is True:
+		F=plt.figure()
+		ax1=F.add_subplot(1,1,1)
+		for i in range(k):
+			plot_data=data[Centroid_ndx==i][::100]
+			ax1.plot(plot_data,np.zeros(plot_data.shape),'o')
+		ax1.plot(Centroids[:,0],np.zeros(len(Centroids[:,0])),'k*')
+	return Centroids
+
 
 ################################
 ### --- Standard Filters --- ###
@@ -321,18 +381,11 @@ class grad:
 		self.az=np.angle(G) 
 
 
-##################################
-### --- Transforms Scaling --- ###
-##################################
+################################
+### --- Spatial analysis --- ###
+################################
 
-# --- Normalize --- 
-# Normalize to values 0 - 255 
-def imgNorm(I,Imin=0,Imax=255): 
-	I=I-I.min()-Imin # shift to min value 
-	I=Imax*I/I.max() # stretch to max value 
-	return I 
-
-# --- Shift --- 
+# --- Shift by integers --- 
 def imgShift(I,xshift,yshift,outVal=None,crop=False): 
 	xshift=int(xshift); yshift=int(yshift) 
 	I=np.concatenate([I[yshift:,:],I[:yshift,:]],axis=0) 
@@ -382,202 +435,6 @@ def intCorr(I1,I2,window=None,vocal=False,plot=False):
 		cax1=ax1.imshow(C,cmap='cividis') 
 		F.colorbar(cax1,orientation='horizontal') 
 	return xshift, yshift 
-
-
-# --- Convert to binary --- 
-def binary(I,pct=50,value=None,low=0,high=1,ds=0,vocal=False): 
-	ds=int(2**ds); I=I[::ds,::ds] 
-	m,n=I.shape 
-	if value is not None: 
-		threshold=value # use strict value 
-	else: 
-		threshold=np.percentile(I,(pct)) # use percentage 
-	if vocal is True: 
-		print('Threshold: %.1f' % (threshold))
-	I[I<=threshold]=low 
-	I[I>threshold]=high 
-	if vocal is True: 
-		N0=np.sum(I==low) 
-		N1=np.sum(I==high) 
-	return I 
-
-
-# --- Erosion dilation --- 
-def erosionDilation(I,ErodeDilate,maskThreshold=0.5,
-	binaryPct=None,binaryValue=None,ds=0,vocal=False): 
-	# INPUTS 
-	#	I is the image (preferably binary) 
-	#	ErodeDilate is a switch 'erode'/'dilate' 
-	#	binaryPct, binaryValue initiate conversion to binary 
-	# OUTPUTS 
-	#	binary mask
-	ErodeDilate=ErodeDilate.lower() 
-	# Convert to 0,1 binary if required 
-	if binaryPct is not None and binaryValue is None: 
-		I=binary(I,pct=binaryPct,ds=ds,vocal=vocal) 
-	elif binaryValue is not None: 
-		I=binary(I,value=binaryValue,ds=ds,vocal=vocal) 
-	else: 
-		ds=int(2**ds); I=I[::ds,::ds] 
-	# Compute average window 
-	k=np.ones((3,3))/9 
-	C=sig.convolve2d(I,k,'same') 
-	if ErodeDilate=='erode': 
-		I[C<=maskThreshold]=0 
-	elif ErodeDilate=='dilate': 
-		I[C>=1-maskThreshold]=1 
-	return I   
-
-
-# --- Linear transform --- 
-def linearTransform(I,B0,B1,ds=0,interp_kind='linear',show_gamma=False): 
-	# Setup 
-	ds=2**ds; I=I[::ds,::ds] 
-	m=I.shape[0]; n=I.shape[1] 
-	I=I.reshape(1,-1) 
-
-	# Transform curve 
-	x=np.arange(0,256) 
-	G=B1*x+B0 # y = mx + b 
-
-	F=intp.interp1d(x,G,kind=interp_kind) 
-	Itrans=F(I) 
-	Itrans[Itrans<0]=0 
-	Itrans[Itrans>255]=255 
-
-	# Plot histogram? 
-	if show_gamma is not False: 
-		# Determine number of bins 
-		if type(show_gamma)==int: 
-			nbins=show_gamma 
-		else: 
-			nbins=255 
-		# Compute histograms 
-		H1,H1edges=np.histogram(I,bins=nbins) 
-		H1cntrs=H1edges[:-1]+np.diff(H1edges)/2 
-		H2,H2edges=np.histogram(Itrans,bins=nbins) 
-		H2cntrs=H2edges[:-1]+np.diff(H2edges)/2 
-		# Format curves 
-		H1cntrs=np.pad(H1cntrs,(1,1),'constant',
-			constant_values=(H1edges[0],H1edges[-1])) 
-		H1=np.pad(H1,(1,1),'constant'); H1=255*H1/H1.max() 
-		H2cntrs=np.pad(H2cntrs,(1,1),'constant',
-			constant_values=(H2edges[0],H2edges[-1])) 
-		H2=np.pad(H2,(1,1),'constant'); H2=255*H2/H2.max() 
-		# Relative resolving power 
-		R=B1*H1 
-		R[H1cntrs<=-B0/B1]=0.; R[H1cntrs>=(255-B0)/B1]=0. 
-		# Plot curves 
-		FigG=plt.figure('Linear Transform') 
-		ax1=FigG.add_subplot(111) # Gamma curve 
-		cax1=ax1.plot(x,G,'r',linewidth=2) 
-		ax1.axis((0,255,0,255));ax1.set_aspect(1) 
-		ax1.fill(H1cntrs,H1,color=(0.4,0.5,0.5),alpha=1,label='orig') 
-		ax1.plot(H1cntrs,R,'g--',label='reslv') 
-		ax1.fill(H2cntrs,H2,color=(0,0,1),alpha=0.5,label='trnsf') 
-		ax1.legend()  
-	# Output 
-	Itrans=Itrans.reshape(m,n) 
-	return Itrans 
-
-
-# --- Gaussian transform --- 
-def gaussTransform(I,A,B,ds=0,interp_kind='linear',show_gamma=False):
-	# Setup 
-	ds=2**ds; I=I[::ds,::ds] 
-	m=I.shape[0]; n=I.shape[1] 
-	I=I.reshape(1,-1) 
-
-	# Transform curve 
-	x=np.arange(0,256) 
-	G=255*erf(x,A,B) # Gaussian error function 
-
-	F=intp.interp1d(x,G,kind=interp_kind) 
-	Itrans=F(I) 
-	Itrans[Itrans<0]=0 
-	Itrans[Itrans>255]=255
-
-	# Plot histogram? 
-	if show_gamma is not False: 
-		# Determine number of bins 
-		if type(show_gamma)==int: 
-			nbins=show_gamma 
-		else: 
-			nbins=255 
-		# Compute histograms 
-		H1,H1edges=np.histogram(I,bins=int(256/4)) 
-		H1cntrs=H1edges[:-1]+np.diff(H1edges)/2 
-		H2,H2edges=np.histogram(Itrans,bins=int(256/4)) 
-		H2cntrs=H2edges[:-1]+np.diff(H2edges)/2 
-		# Format curves 
-		H1cntrs=np.pad(H1cntrs,(1,1),'constant',
-			constant_values=(H1edges[0],H1edges[-1])) 
-		H1=np.pad(H1,(1,1),'constant'); H1=255*H1/H1.max() 
-		H2cntrs=np.pad(H2cntrs,(1,1),'constant',
-			constant_values=(H2edges[0],H2edges[-1])) 
-		H2=np.pad(H2,(1,1),'constant'); H2=255*H2/H2.max() 
-		# Relative resolving power 
-		R=H1*gauss(H1cntrs,A,B); R=255*R/R.max() 
-
-		# Plot curves 
-		FigG=plt.figure('Gaussian Transform') 
-		ax1=FigG.add_subplot(111) # Gamma curve 
-		cax1=ax1.plot(x,G,'r',linewidth=2) 
-		ax1.axis((0,255,0,255));ax1.set_aspect(1) 
-		ax1.fill(H1cntrs,H1,color=(0.4,0.5,0.5),alpha=1,label='orig') 
-		ax1.plot(H1cntrs,R,'g--',label='resvl')
-		ax1.fill(H2cntrs,H2,color=(0,0,1.0),alpha=0.5,label='trnsf') 
-		ax1.legend() 
-
-	# Output 
-	Itrans=Itrans.reshape(m,n) 
-	return Itrans 
-
-
-# --- Histogram equalize --- 
-def equalize(I,nbins=256,ds=0,vocal=False,plot=False): 
-	# Setup 
-	ds=int(2**ds); I=I[::ds,::ds] 
-	m,n=I.shape # orig shape 
-	Imin=I.min(); Imax=I.max() 
-	Ivals=I.copy().reshape(1,-1).squeeze(0) # single row 
-	N=len(Ivals) # total number of pixels 
-	# Build initial histogram 
-	H0,edges=np.histogram(Ivals,bins=nbins) 
-	cntrs=edges[:-1]+np.diff(edges)/2 
-	# Calculate probability distributions 
-	P0=H0/N # probability mass 
-	C0=np.cumsum(P0) # cumulative prob 
-	C0[0]=0 # start with zero 
-	C0=(Imax-Imin)*C0+Imin # value range 
-	if vocal is True: 
-		print('Equalizing')
-		print('\tImin: %f\tImax: %f' % (Imin,Imax)) 
-		print('\tCmin: %f\tCmax: %f' % (C0.min(),C0.max()))
-	# Inverse distribution function 
-	Cintp=intp.interp1d(edges[:-1],C0,kind='linear',bounds_error=False,fill_value=Imax) 
-	Ieq=Cintp(I) 
-	# Plot 
-	Heq,edges=np.histogram(Ieq,bins=nbins) 
-	Peq=Heq/N 
-	Ceq=(Imax-Imin)*np.cumsum(Peq)+Imin 
-	X=np.hstack([cntrs.reshape(-1,1),np.ones((nbins,1))]) 
-	fit=np.linalg.inv(X.T.dot(X)).dot(X.T).dot(Ceq.reshape(-1,1)) 
-	if plot is not False: 
-		F=plt.figure() 
-		ax1=F.add_subplot(2,1,1) 
-		ax1.bar(cntrs-0.4,P0,color='k') 
-		ax1.bar(cntrs+0.4,Peq,color='b')
-		ax1.set_ylabel('PDF') 
-		ax2=F.add_subplot(2,1,2) 
-		ax2.plot(cntrs,C0,'k',linewidth=2,zorder=1)
-		ax2.plot(cntrs,X.dot(fit),color=(0.5,0.6,1),zorder=2) 
-		ax2.plot(cntrs,Ceq,'b',linewidth=2,zorder=3)
-		ax2.set_ylabel('CDF') 
-	if vocal is True: 
-		print('\tfit: %f' % (fit[0]))
-	return Ieq 
-
 
 # --- Fit plane --- 
 # Fit a 2D plane to data 
@@ -643,10 +500,10 @@ class fitPlane:
 			print('\tBounds\n\t\tx: %f, %f\n\t\ty: %f, %f\n\t\tz: %f, %f' % 
 				(xMin,xMax,yMin,yMax,zMin,zMax)) 
 			print('\tP size:',P.shape) 
-		# Decompose using SVD  
+		# Decompose using SVD
 		U,s,VT=np.linalg.svd(P) 
 		S=np.zeros((nData,3)); S[:3,:3]=np.diag(s) 
-		# Reduce to 2D 
+		# Reduce to 2D
 		S[2,2]=0. # null third dimension 
 		Q=U.dot(S.dot(VT)) # project onto plane 
 		# Vectors 
@@ -707,6 +564,341 @@ class fitPlane:
 		self.N=N # normal to plane 
 		self.Q=Q # points on plane 
 		self.Z=Z # hypothetical plane 
+
+
+##################################
+### --- Transforms Scaling --- ###
+##################################
+
+# --- Normalize --- 
+# Normalize to values 0 - 255 
+def imgNorm(I,Imin=0,Imax=255): 
+	I=I-I.min()-Imin # shift to min value 
+	I=Imax*I/I.max() # stretch to max value 
+	return I 
+
+# --- Convert to binary --- 
+def binary(I,pct=50,value=None,low=0,high=1,ds=0,vocal=False): 
+	ds=int(2**ds); I=I[::ds,::ds] 
+	m,n=I.shape 
+	if value is not None: 
+		threshold=value # use strict value 
+	else: 
+		threshold=np.percentile(I,(pct)) # use percentage 
+	if vocal is True: 
+		print('Threshold: %.1f' % (threshold))
+	I[I<=threshold]=low 
+	I[I>threshold]=high 
+	if vocal is True: 
+		N0=np.sum(I==low) 
+		N1=np.sum(I==high) 
+	return I 
+
+# --- Erosion dilation --- 
+def erosionDilation(I,ErodeDilate,maskThreshold=0.5,
+	binaryPct=None,binaryValue=None,ds=0,vocal=False): 
+	# INPUTS 
+	#	I is the image (preferably binary) 
+	#	ErodeDilate is a switch 'erode'/'dilate' 
+	#	binaryPct, binaryValue initiate conversion to binary 
+	# OUTPUTS 
+	#	binary mask
+	ErodeDilate=ErodeDilate.lower() 
+	# Convert to 0,1 binary if required 
+	if binaryPct is not None and binaryValue is None: 
+		I=binary(I,pct=binaryPct,ds=ds,vocal=vocal) 
+	elif binaryValue is not None: 
+		I=binary(I,value=binaryValue,ds=ds,vocal=vocal) 
+	else: 
+		ds=int(2**ds); I=I[::ds,::ds] 
+	# Compute average window 
+	k=np.ones((3,3))/9 
+	C=sig.convolve2d(I,k,'same') 
+	if ErodeDilate=='erode': 
+		I[C<=maskThreshold]=0 
+	elif ErodeDilate=='dilate': 
+		I[C>=1-maskThreshold]=1 
+	return I   
+
+# --- Linear transform --- 
+def linearTransform(I,B0,B1,ds=0,interp_kind='linear',show_gamma=False): 
+	# Setup 
+	ds=2**ds; I=I[::ds,::ds] 
+	m=I.shape[0]; n=I.shape[1] 
+	I=I.reshape(1,-1) 
+
+	# Transform curve 
+	x=np.arange(0,256) 
+	G=B1*x+B0 # y = mx + b 
+
+	F=intp.interp1d(x,G,kind=interp_kind) 
+	Itrans=F(I) 
+	Itrans[Itrans<0]=0 
+	Itrans[Itrans>255]=255 
+
+	# Plot histogram? 
+	if show_gamma is not False: 
+		# Determine number of bins 
+		if type(show_gamma)==int: 
+			nbins=show_gamma 
+		else: 
+			nbins=255 
+		# Compute histograms 
+		H1,H1edges=np.histogram(I,bins=nbins) 
+		H1cntrs=H1edges[:-1]+np.diff(H1edges)/2 
+		H2,H2edges=np.histogram(Itrans,bins=nbins) 
+		H2cntrs=H2edges[:-1]+np.diff(H2edges)/2 
+		# Format curves 
+		H1cntrs=np.pad(H1cntrs,(1,1),'constant',
+			constant_values=(H1edges[0],H1edges[-1])) 
+		H1=np.pad(H1,(1,1),'constant'); H1=255*H1/H1.max() 
+		H2cntrs=np.pad(H2cntrs,(1,1),'constant',
+			constant_values=(H2edges[0],H2edges[-1])) 
+		H2=np.pad(H2,(1,1),'constant'); H2=255*H2/H2.max() 
+		# Relative resolving power 
+		R=B1*H1 
+		R[H1cntrs<=-B0/B1]=0.; R[H1cntrs>=(255-B0)/B1]=0. 
+		# Plot curves 
+		FigG=plt.figure('Linear Transform') 
+		ax1=FigG.add_subplot(111) # Gamma curve 
+		cax1=ax1.plot(x,G,'r',linewidth=2) 
+		ax1.axis((0,255,0,255));ax1.set_aspect(1) 
+		ax1.fill(H1cntrs,H1,color=(0.4,0.5,0.5),alpha=1,label='orig') 
+		ax1.plot(H1cntrs,R,'g--',label='reslv') 
+		ax1.fill(H2cntrs,H2,color=(0,0,1),alpha=0.5,label='trnsf') 
+		ax1.legend()  
+	# Output 
+	Itrans=Itrans.reshape(m,n) 
+	return Itrans 
+
+# --- Gaussian transform --- 
+def gaussTransform(I,A,B,ds=0,interp_kind='linear',show_gamma=False):
+	# Setup 
+	ds=2**ds; I=I[::ds,::ds] 
+	m=I.shape[0]; n=I.shape[1] 
+	I=I.reshape(1,-1) 
+
+	# Transform curve 
+	x=np.arange(0,256) 
+	G=255*erf(x,A,B) # Gaussian error function 
+
+	F=intp.interp1d(x,G,kind=interp_kind) 
+	Itrans=F(I) 
+	Itrans[Itrans<0]=0 
+	Itrans[Itrans>255]=255
+
+	# Plot histogram? 
+	if show_gamma is not False: 
+		# Determine number of bins 
+		if type(show_gamma)==int: 
+			nbins=show_gamma 
+		else: 
+			nbins=255 
+		# Compute histograms 
+		H1,H1edges=np.histogram(I,bins=int(256/4)) 
+		H1cntrs=H1edges[:-1]+np.diff(H1edges)/2 
+		H2,H2edges=np.histogram(Itrans,bins=int(256/4)) 
+		H2cntrs=H2edges[:-1]+np.diff(H2edges)/2 
+		# Format curves 
+		H1cntrs=np.pad(H1cntrs,(1,1),'constant',
+			constant_values=(H1edges[0],H1edges[-1])) 
+		H1=np.pad(H1,(1,1),'constant'); H1=255*H1/H1.max() 
+		H2cntrs=np.pad(H2cntrs,(1,1),'constant',
+			constant_values=(H2edges[0],H2edges[-1])) 
+		H2=np.pad(H2,(1,1),'constant'); H2=255*H2/H2.max() 
+		# Relative resolving power 
+		R=H1*gauss(H1cntrs,A,B); R=255*R/R.max() 
+
+		# Plot curves 
+		FigG=plt.figure('Gaussian Transform') 
+		ax1=FigG.add_subplot(111) # Gamma curve 
+		cax1=ax1.plot(x,G,'r',linewidth=2) 
+		ax1.axis((0,255,0,255));ax1.set_aspect(1) 
+		ax1.fill(H1cntrs,H1,color=(0.4,0.5,0.5),alpha=1,label='orig') 
+		ax1.plot(H1cntrs,R,'g--',label='resvl')
+		ax1.fill(H2cntrs,H2,color=(0,0,1.0),alpha=0.5,label='trnsf') 
+		ax1.legend() 
+
+	# Output 
+	Itrans=Itrans.reshape(m,n) 
+	return Itrans 
+
+# --- Histogram equalize --- 
+def equalize(I,nbins=256,ds=0,vocal=False,plot=False): 
+	# Setup 
+	ds=int(2**ds); I=I[::ds,::ds] 
+	m,n=I.shape # orig shape 
+	Imin=I.min(); Imax=I.max() 
+	Ivals=I.copy().reshape(1,-1).squeeze(0) # single row 
+	N=len(Ivals) # total number of pixels 
+	# Build initial histogram 
+	H0,edges=np.histogram(Ivals,bins=nbins) 
+	cntrs=edges[:-1]+np.diff(edges)/2 
+	# Calculate probability distributions 
+	P0=H0/N # probability mass 
+	C0=np.cumsum(P0) # cumulative prob 
+	C0[0]=0 # start with zero 
+	C0=(Imax-Imin)*C0+Imin # value range 
+	if vocal is True: 
+		print('Equalizing')
+		print('\tImin: %f\tImax: %f' % (Imin,Imax)) 
+		print('\tCmin: %f\tCmax: %f' % (C0.min(),C0.max()))
+	# Inverse distribution function 
+	Cintp=intp.interp1d(edges[:-1],C0,kind='linear',bounds_error=False,fill_value=Imax) 
+	Ieq=Cintp(I) 
+	# Plot 
+	Heq,edges=np.histogram(Ieq,bins=nbins) 
+	Peq=Heq/N 
+	Ceq=(Imax-Imin)*np.cumsum(Peq)+Imin 
+	X=np.hstack([cntrs.reshape(-1,1),np.ones((nbins,1))]) 
+	fit=np.linalg.inv(X.T.dot(X)).dot(X.T).dot(Ceq.reshape(-1,1)) 
+	if plot is not False: 
+		F=plt.figure() 
+		ax1=F.add_subplot(2,1,1) 
+		ax1.bar(cntrs-0.4,P0,color='k') 
+		ax1.bar(cntrs+0.4,Peq,color='b')
+		ax1.set_ylabel('PDF') 
+		ax2=F.add_subplot(2,1,2) 
+		ax2.plot(cntrs,C0,'k',linewidth=2,zorder=1)
+		ax2.plot(cntrs,X.dot(fit),color=(0.5,0.6,1),zorder=2) 
+		ax2.plot(cntrs,Ceq,'b',linewidth=2,zorder=3)
+		ax2.set_ylabel('CDF') 
+	if vocal is True: 
+		print('\tfit: %f' % (fit[0]))
+	return Ieq 
+
+# --- Intervals --- 
+# Bin values into intervals 
+def intervals(I,bins,mode='values',nbins=100,vocal=False,plot=False): 
+	# INPUTS 
+	#	I is the image to be analyzed 
+	#	B is the bin centers
+	#	 if B is an integer, B break values will be used, resulting in B+1 bins 
+	#	 if B is a list, the values will be bin centers 
+	#	 B values can represent either image values, or percentiles 
+	#	  depending on user-specified 'mode' parameter 
+	#	mode is the distribution type, can be either 'values' or 'perc' 
+	# OUTPUT 
+	#	I is the binned image 
+
+	## Setup
+	I_out=I.copy()
+	# Statistics
+	Min=I.min(); Max=I.max() # image statistics
+	H,Hedges=np.histogram(I.reshape(-1,1),nbins) # histogram
+	Hcntrs=Hedges[:-1]+np.diff(Hedges)/2 # hist bin centers
+	C=np.cumsum(H)/np.sum(H) # cumulative function
+	# Interpolation functions
+	Hintrp=intp.interp1d(Hcntrs,H,kind='linear',
+		bounds_error=False,fill_value=np.nan)
+	Cintrp=intp.interp1d(Hcntrs,C,kind='linear',
+		bounds_error=False,fill_value=np.nan)
+	# Define bins and breaks
+	if mode in ['values','vals']:
+		# Evenly spaced bins
+		if type(bins)==int:
+			nBins=int(bins) # number of bins
+			nBrks=nBins-1+2 # add 2 for ends of range
+			brks=np.linspace(Min,Max,nBrks)
+			bins=brks[:-1]+np.diff(brks)/2 # bins
+			prctBins=Cintrp(bins) # bin percentiles
+			prctBrks=Cintrp(brks) # break percentiles
+			prctBrks[0]=C.min(); prctBrks[-1]=C.max() # ends
+		# User-specified bin centers
+		else:
+			nBins=len(bins) # number of bins
+			nBrks=nBins-1+2 # number of breaks
+			if type(bins)==list:
+				bins=np.array(bins) # use array
+			brks=np.zeros(nBrks) # empty array for break values
+			brks[1:-1]=bins[:-1]+np.diff(bins)/2 # breaks from bins
+			brks[0]=Min; brks[-1]=Max # end values
+			prctBins=Cintrp(bins) # bin percentiles
+			prctBrks=Cintrp(brks) # break percentiles
+			prctBrks[0]=C.min(); prctBrks[-1]=C.max() # ends
+	elif mode in ['percentiles','perc','percent','pct']:
+		# Evenly spaced percentiles
+		if type(bins)==int:
+			nBins=int(bins) # number of bins
+			nBrks=nBins-1+2 # add 2 for ends of range
+			prctBrks=np.linspace(C.min(),C.max(),nBrks) # breaks by pctile
+			# Interpolate break values
+			BrkInterp=intp.interp1d(C,Hcntrs,kind='linear',
+				bounds_error=False,fill_value=np.nan) # interpolation
+			brks=BrkInterp(prctBrks) # interpolate break values
+			prctBins=prctBrks[:-1]+np.diff(prctBrks)/2
+			bins=BrkInterp(prctBins) # interpolate bin values
+		# User-specified percentiles
+		else:
+			nBins=len(bins) # number of bins
+			nBrks=nBins-1+2 # number of breaks
+			if type(bins)==list:
+				bins=np.array(bins) # use array
+			if np.max(bins)>1.0:
+				bins=bins/100 # adjust percentiles to fractions
+			prctBrks=np.zeros(nBrks) # empty array for break prcntiles
+			prctBrks[1:-1]=bins[:-1]+np.diff(bins)/2 # breaks from bins
+			prctBrks[0]=0; prctBrks[-1]=1.0 # end values
+			print(prctBrks)
+			# Interpolate break values
+			BrkInterp=intp.interp1d(C,Hcntrs,kind='linear',
+				bounds_error=False,fill_value=np.nan) # interpolation
+			brks=BrkInterp(prctBrks) # interpolate break values
+			brks[0]=Min; brks[-1]=Max # end values
+			bins=BrkInterp(bins)
+			prctBins=Cintrp(bins)
+	elif mode in ['auto','kmeans']:
+		nBins=bins # number of bins
+		nBrks=nBins-1+2 # number of breaks
+		bins=kmeans(I.reshape(-1,1),nBins)
+		bins=bins[:,0]
+		brks=np.zeros(nBrks) # empty array for break values
+		brks[1:-1]=bins[:-1]+np.diff(bins)/2 # breaks from bins
+		brks[0]=Min; brks[-1]=Max # end values
+		prctBins=Cintrp(bins)
+		prctBrks=Cintrp(brks)
+		prctBrks[0]=C.min(); prctBrks[-1]=C.max()
+	else:
+		print('Mode not recognized')
+	# Initial printouts
+	if vocal is True:
+		print('Mode: %s' % (mode))
+		print('Bins: %i' % (nBins))
+		print('Min: %.2f\tMax: %.2f' % (Min,Max))
+	## Ouputs
+	# Redefine image by breaks
+	for i in range(nBrks-1):
+		ndx=((I>=brks[i]) & (I<brks[i+1]))
+		I_out[ndx]=np.mean(I[ndx])
+		if vocal is True:
+			print('\tbrks: %.2f - %.2f; bin: %.2f' \
+				% (brks[i],brks[i+1],bins[i]))
+	# Plot histogram
+	if plot is True: 
+		F=plt.figure() 
+		# Histogram
+		ax1=F.add_subplot(2,1,1)
+		for i in range(nBrks): # break values
+			ax1.axvline(brks[i],
+				linestyle='-',color=(0.5,0.5,0.65),
+				zorder=1)
+		for j in range(nBins): # bin values
+			binText='|%.0f' % (bins[j])
+			ax1.text(bins[j],H.max(),binText,color='r')
+		ax1.bar(Hcntrs,H,color='k',zorder=3) # histogram
+		ax1.set_xlim([0,255])
+		# CDF 
+		ax2=F.add_subplot(2,1,2) 
+		for i in range(nBrks): # break values
+			ax2.axhline(prctBrks[i],
+				linestyle='-',color=(0.5,0.5,0.65),
+				zorder=1)
+		for j in range(nBins):
+			binText='._%.2f' % (prctBins[j])
+			ax2.text(bins[j],prctBins[j],binText,color='r')
+		ax2.plot(Hcntrs,C,color='k',zorder=3) # CDF
+		ax2.set_xlim([0,255])
+	return I_out 
 
 # --- Remove tilt --- 
 def untilt(data,dtype,ds=0,vocal=False,plot=False): 
@@ -1275,9 +1467,4 @@ def gaussBlend(I1,I2,d='auto',c=None,plot=False):
 		ax.axhline(cy,zorder=2) # central y-axis 
 		ax.axvline(cx,zorder=2) # central x-axis 
 		ax.imshow(D1,cmap='viridis',alpha=0.3,zorder=3) 
-	return B 
-
-
-
-
-
+	return B
