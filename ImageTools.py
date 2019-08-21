@@ -252,7 +252,7 @@ def freqFilt(I,fcut,dx=1,taper=None,ftype='low',vocal=False,plot=False):
 		ycut2=int(m2+m2*fcut) 
 		K=np.zeros((m,n)) # empty filter kernel 
 		K[ycut1:ycut2,xcut1:xcut2]=1. 
-	elif taper is 'gauss': 
+	elif taper.lower() is 'gauss': 
 		x=gauss(np.linspace(-n2,n2,n),0,n2*fcut) 
 		x=x/x.max() 
 		y=gauss(np.linspace(-m2,m2,m),0,m2*fcut) 
@@ -467,7 +467,7 @@ def binary(I,pct=50,value=None,low=0,high=1,ds=0,vocal=False):
 	return I 
 
 # --- Erosion dilation --- 
-def erosionDilation(I,ErodeDilate,maskThreshold=0.5,
+def erosionDilation(I,mode,maskThreshold=0.5,iterations=1,
 	binaryPct=None,binaryValue=None,ds=0,vocal=False):
 	# INPUTS
 	#	I is the image (preferably binary)
@@ -476,7 +476,6 @@ def erosionDilation(I,ErodeDilate,maskThreshold=0.5,
 	# OUTPUTS
 	#	binary mask
 	Iout=I.copy()
-	ErodeDilate=ErodeDilate.lower()
 	# Convert to 0,1 binary if required 
 	if binaryPct is not None and binaryValue is None: 
 		Iout=binary(I,pct=binaryPct,ds=ds,vocal=vocal) 
@@ -485,13 +484,17 @@ def erosionDilation(I,ErodeDilate,maskThreshold=0.5,
 	else:
 		ds=int(2**ds); Iout=I[::ds,::ds]
 	# Compute average window 
-	k=np.ones((3,3))/9 
-	C=sig.convolve2d(Iout,k,'same') 
-	if ErodeDilate=='erode': 
-		Iout[C<=maskThreshold]=0 
-	elif ErodeDilate=='dilate': 
-		Iout[C>=1-maskThreshold]=1 
-	return Iout  
+	def erodeDilate(Iout,mode):
+		k=np.ones((3,3))/9 
+		C=sig.convolve2d(Iout,k,'same') 
+		if mode.lower()=='erode': 
+			Iout[C<=maskThreshold]=0 
+		elif mode.lower()=='dilate': 
+			Iout[C>=1-maskThreshold]=1 
+		return Iout
+	for i in range(iterations):
+		Iout=erodeDilate(Iout,mode)
+	return Iout
 
 # --- Linear transform --- 
 def linearTransform(I,B0,B1,ds=0,interp_kind='linear',show_gamma=False): 
