@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits import mplot3d 
 
 # Fit a 2D plane to data 
 class fitPlane:
@@ -104,7 +105,7 @@ class fitPlane:
 				ax.set_xlim([xMin,xMax]); ax.set_xlabel('-x-') 
 				ax.set_ylim([yMin,yMax]); ax.set_ylabel('-y-') 
 				ax.set_zlim([zMin,zMax]); ax.set_zlabel('-z-') 
-				ax.set_aspect(1) 
+				#ax.set_aspect(1) 
 				ax.set_title('SVD plane fit (centered)')
 			elif dtype is 'image' or dtype is 'img' or dtype is 'map': 
 				# Plot data as image 
