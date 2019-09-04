@@ -38,6 +38,7 @@ class vField:
 		# Estimate number of steps based on pixel size
 		xWinWidth=int(xWin/2) # half-window width in x
 		yWinWidth=int(yWin/2) # half-window width in y
+		ystep=np.abs(ystep); xstep=np.abs(xstep)
 
 		n_y_steps=int(mImg/ystep) # number of steps in y
 		m_x_steps=int(nImg/xstep) # number of steps in x
@@ -65,8 +66,8 @@ class vField:
 				self.x[k]=xlocations[j]
 				self.y[k]=ylocations[i]
 
-				x_region=np.arange(xlocations[j]-xWinWidth,xlocations[j]+xWinWidth+1)
-				y_region=np.arange(ylocations[i]-yWinWidth,ylocations[i]+yWinWidth+1)
+				x_region=np.arange(xlocations[j]-xWinWidth,xlocations[j]+xWinWidth+1).astype(int)
+				y_region=np.arange(ylocations[i]-yWinWidth,ylocations[i]+yWinWidth+1).astype(int)
 				
 				self.u[k]=np.nanmean(EW[y_region,x_region])
 				self.v[k]=np.nanmean(NS[y_region,x_region])

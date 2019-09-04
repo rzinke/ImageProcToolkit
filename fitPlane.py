@@ -2,9 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d 
 
-# Fit a 2D plane to data 
+# Fit a 2D plane to data using Singular Value Decomposition
 class fitPlane:
-	def __init__(self,data,dtype,dx=1,dy=1,ds=0,includeAll=True,vocal=False,plot=False):
+	def __init__(self,data,dtype,dx=1,dy=1,ds=0,method='svd',outputAll=True,vocal=False,plot=False):
 		''' 
 		Fit a plane to the points 
 		INPUTS 
@@ -13,8 +13,14 @@ class fitPlane:
 			  m x n 2D array with no spatial reference 
 			dtype is the data type: 
 			  'points' or 'pts' 
-			  'image', 'img', or 'map' 
-			ds is the downsample factor (power of 2) 
+			  'image', 'img', or 'map'
+			For a regular grid:
+			  dx is the sample size in x
+			  dy is the sample size in y
+			ds is the downsample factor (power of 2)
+			method is the inversion algorithm
+			  'svd' or 'lsq'
+			outputAll appends all outputs to the object 
 			vocal = True/False 
 			plot  = True/False 
 		OUTPUTS 
@@ -68,26 +74,37 @@ class fitPlane:
 			print('\tBounds\n\t\tx: %f, %f\n\t\ty: %f, %f\n\t\tz: %f, %f' % 
 				(xMin,xMax,yMin,yMax,zMin,zMax)) 
 			print('\tP size:',P.shape) 
-		# Decompose using SVD
-		U,s,VT=np.linalg.svd(P) 
-		S=np.zeros((nData,3)); S[:3,:3]=np.diag(s) 
-		# Reduce to 2D
-		S[2,2]=0. # null third dimension 
-		Q=U.dot(S.dot(VT)) # project onto plane 
-		# Vectors 
-		V=VT[:2,:].T # first two right singular vectors 
-		dotV=np.dot(V[:,0],V[:,1]) # dot product to confirm orthonormality 
-		N=np.cross(V[:,0],V[:,1]) # normal to plane 
-		N=N/np.linalg.norm(N) # confirm unit length 
-		if vocal is True: 
-			print('\tSingular vectors:') 
-			print('\t\tV1: ', V[:,0].T) 
-			print('\t\tV2: ', V[:,1].T) 
-			print('\t\t\tdot: %f' % (dotV)) 
-			print('\tNormal to plane:\n\t\tN:', N.T) 
-			print('\t\t\tdot: %f; %f' % (np.dot(N,V[:,0]),np.dot(N,V[:,1]))) 
-		# Plane 
-		Z=-1/N[2]*((N[0]*X)+(N[1]*Y)) 
+		if method.lower() in ['svd']:
+			# Decompose using SVD
+			U,s,VT=np.linalg.svd(P) 
+			S=np.zeros((nData,3)); S[:3,:3]=np.diag(s) 
+			# Reduce to 2D
+			S[2,2]=0. # null third dimension 
+			Q=U.dot(S.dot(VT)) # project onto plane 
+			# Vectors 
+			V=VT[:2,:].T # first two right singular vectors 
+			dotV=np.dot(V[:,0],V[:,1]) # dot product to confirm orthonormality 
+			N=np.cross(V[:,0],V[:,1]) # normal to plane 
+			N=N/np.linalg.norm(N) # confirm unit length 
+			Z=-1/N[2]*((N[0]*X)+(N[1]*Y)) # plane 
+			if vocal is True: 
+				print('\tSingular vectors:') 
+				print('\t\tV1: ', V[:,0].T) 
+				print('\t\tV2: ', V[:,1].T) 
+				print('\t\t\tdot: %f' % (dotV)) 
+				print('\tNormal to plane:\n\t\tN:', N.T) 
+				print('\t\t\tdot: %f; %f' % (np.dot(N,V[:,0]),np.dot(N,V[:,1])))
+		elif method.lower() in ['lsq','least squares']:
+			# Set up design matrix
+			G=P[:,:2] # design matrix
+			# Beta vector
+			Beta=np.linalg.inv(G.T.dot(G)).dot(G.T).dot(P[:,2]) # invert
+			# Normal vector
+			A=Beta[0]; B=Beta[1]
+			C=np.cross(np.array([A,0,0]),np.array(0,B,0))
+			N=np.array(A,B,C) # normal to plane
+			N=N/np.linalg.norm(N) # confirm unit length
+			Z=A*X+B*Y # plane
 		# Plot if specified 
 		if plot is not False: 
 			if dtype is 'points' or dtype is 'pts': 
@@ -130,6 +147,6 @@ class fitPlane:
 		# Outputs 
 		self.V=V # singular vectors 
 		self.N=N # normal to plane 
-		if includeAll is True:
+		if outputAll is True:
 			self.Q=Q # points on plane 
 			self.Z=Z # hypothetical plane 
