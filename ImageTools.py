@@ -194,14 +194,14 @@ def freqFilt(I,fcut,dx=1,taper=None,ftype='low',vocal=False,plot=False):
 		ycut2=int(m2+m2*fcut) 
 		K=np.zeros((m,n)) # empty filter kernel 
 		K[ycut1:ycut2,xcut1:xcut2]=1. 
-	elif taper.lower() is 'gauss': 
+	elif taper.lower() in ['gaussian','gauss']: 
 		x=gauss(np.linspace(-n2,n2,n),0,n2*fcut) 
 		x=x/x.max() 
 		y=gauss(np.linspace(-m2,m2,m),0,m2*fcut) 
 		y=y/y.max() 
 		K=np.dot(y.reshape(-1,1),x.reshape(1,-1)) 
 		K=K/K.max() 
-	if ftype.lower()=='hi' or ftype.lower()=='high': 
+	if ftype.lower() in ['hi', 'high']: 
 		K=1-K 
 	IFcut=K*IFcut 
 	# Outputs 
