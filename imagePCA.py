@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt 
 
 class stackPCA:
-	def __init__(self,stack,verbose=False):
+	def __init__(self,stack,standardize=True,verbose=False):
 		# Data basics
 		self.stack=stack.copy() # original data stack
 		self.K,self.M,self.N=self.stack.shape # data set dimensions
@@ -15,7 +15,8 @@ class stackPCA:
 		Data=np.zeros((MN,self.K)) # empty 2D array
 		for k in range(self.K):
 			Data[:,k]=stack[k,:,:].flatten()
-			Data[:,k]=(Data[:,k]-Data[:,k].mean())/Data[:,k].std()
+			if standardize is True:
+				Data[:,k]=(Data[:,k]-Data[:,k].mean())/Data[:,k].std()
 		print('Data array shape: {}'.format(Data.shape))
 
 		# Compute covariance matrix
