@@ -477,7 +477,7 @@ def linearTransform(I,B0,B1,ds=0,interp_kind='linear',show_gamma=False):
 		R=B1*H1 
 		R[H1cntrs<=-B0/B1]=0.; R[H1cntrs>=(255-B0)/B1]=0. 
 		# Plot curves 
-		FigG=plt.figure('Linear Transform') 
+		FigG=plt.figure() 
 		ax1=FigG.add_subplot(111) # Gamma curve 
 		cax1=ax1.plot(x,G,'r',linewidth=2) 
 		ax1.axis((0,255,0,255));ax1.set_aspect(1) 
@@ -525,7 +525,7 @@ def gaussTransform(I,A,B,ds=0,interp_kind='linear',show_gamma=False):
 		R=H1*gauss(H1cntrs,A,B); R=255*R/R.max() 
 
 		# Plot curves 
-		FigG=plt.figure('Gaussian Transform') 
+		FigG=plt.figure() 
 		ax1=FigG.add_subplot(111) # Gamma curve 
 		cax1=ax1.plot(x,G,'r',linewidth=2) 
 		ax1.axis((0,255,0,255));ax1.set_aspect(1) 
