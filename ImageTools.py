@@ -154,12 +154,12 @@ def spectrum(I,dx=1,coords='polar',vocal=False):
 		print('Sampling freq: %f' % (fs)) 
 		print('Nyquist freq:  %f' % (fN)) 
 	# Convert representation 
-	if coords is 'rectangular': 
+	if coords == 'rectangular': 
 		IFa=IF.real # real component 
 		LabelA='real' 
 		IFb=IF.imag # imaginary component 
 		LabelB='imaginary' 
-	if coords is 'polar': 
+	if coords  =='polar': 
 		IFa=np.abs(IF) # magnitude 
 		IFa=np.log10(IFa) # log scale for clarity 
 		LabelA='Log magnitude' 
@@ -351,10 +351,10 @@ def intCorr(I1,I2,window=None,vocal=False,plot=False):
 	I1=I1.copy(); I2=I2.copy() 
 	# Window 
 	W=np.ones((m,n)) 
-	if window is 'hamming' or window is 'Hamming': 
+	if window.lower() == 'hamming': 
 		W*=np.hamming(n).reshape(1,-1) 
 		W*=np.hamming(m).reshape(-1,1) 
-	if window is 'blackman' or window is 'Blackman': 
+	if window.lower() == 'blackman': 
 		W*=np.blackman(n).reshape(1,-1) 
 		W*=np.blackman(m).reshape(-1,1) 
 	I1*=W; I2*=W # apply windows
@@ -734,9 +734,9 @@ def untilt(data,dtype,ds=0,vocal=False,plot=False):
 	Pln=fitPlane(data,dtype,ds=ds,vocal=vocal,plot=plot) 
 
 	# Remove plane from data points 
-	if dtype is 'points' or dtype is 'pts': 
+	if dtype in ['points','pts']: 
 		Tdata=data[:,2]-Pln.Q[:,2] # remove projected points 
-	elif dtype is 'image' or dtype is 'img' or dtype is 'map': 
+	elif dtype in ['image','img','map']: 
 		Tdata=data-Pln.Z # remove hypothetical plane 
 
 	# Print if specified 
@@ -745,7 +745,7 @@ def untilt(data,dtype,ds=0,vocal=False,plot=False):
 
 	# Plot if specified 
 	if plot is not False: 
-		if dtype is 'points' or dtype is 'pts': 
+		if dtype in ['points','pts']: 
 			# Plot data as points 
 			F=plt.figure() 
 			ax=F.add_subplot(1,2,1,projection='3d') 
@@ -758,7 +758,7 @@ def untilt(data,dtype,ds=0,vocal=False,plot=False):
 			ax.set_zlim([data[:,2].min(),data[:,2].max()]); ax.set_zlabel('-z-') 
 			ax.set_aspect(1) 
 			ax.set_title('Tilted points') 
-		elif dtype is 'image' or dtype is 'img' or dtype is 'map': 
+		elif dtype in ['image','img','map']: 
 			# Plot data as image 
 			m,n=data.shape 
 			if type(plot) is str:
@@ -891,9 +891,9 @@ class fft_compress:
 	def __init__(self,I,R,vocal=False,plot=False): 
 		# Check x,y dims are even numbers 
 		m,n=I.shape 
-		if m%2 is not 0: 
+		if m%2 != 0: 
 			I=I[:-1] # make even 
-		if n%2 is not 0: 
+		if n%2 != 0: 
 			I=I[:-1] # make even 
 		# Setup 
 		m,n=I.shape # original image dimensions (even) 
@@ -1258,7 +1258,7 @@ def gaussBlend(I1,I2,d='auto',c=None,plot=False):
 	else: 
 		cx=n2; cy=m2 # map center 
 	# Kernel width 
-	if d is not 'auto': 
+	if d != 'auto': 
 		# d is the 3-sigma width of the blending mask 
 		d=d/3 
 	else: 
