@@ -46,7 +46,7 @@ def kmeans(data,k,max_iterations=20,centroids='auto',vocal=False,plot=False):
 			Centroids_new[j,:]=cluster_mean
 		if not np.sum(Centroids_new-Centroids):
 			break
-		Centroids=Centroids_new
+		Centroids=Centroids_new.copy()
 		max_iterations-=1
 	# Plot
 	Dists=find_closest_centroid(data,k) # final calculation
