@@ -79,7 +79,7 @@ class stackPCA:
 		ax.set_xticklabels(xticklabels)
 
 
-	def plotPCs(self,ds=0):
+	def plotPCs(self,cmap='Greys_r',ds=0):
 		# Formatting
 		ds=int(2**ds) # downsample factor
 		rootK=np.sqrt(self.K)
@@ -91,19 +91,24 @@ class stackPCA:
 		for k in range(self.K):
 			pc=k+1 # subtract 1 for index value
 			ax=PCsFig.add_subplot(rows,cols,pc)
-			ax.imshow(self.PCstack[k,::ds,::ds],cmap='Greys_r')
+			ax.imshow(self.PCstack[k,::ds,::ds],cmap=cmap)
 			ax.set_xticks([]); ax.set_yticks([])
 			ax.set_title('PC {}'.format(pc))
 		PCsFig.suptitle('Projected data')
 
 
-	def plotPC(self,PC,cmap='Greys_r',ds=0):
+	def plotPC(self,PC,cmap='Greys_r',bg=None,ds=0):
 		# Formatting
 		ds=int(2**ds) # downsample factor
 		pcNdx=PC-1 # index of slice
+
+		PC=self.PCstack[pcNdx,::ds,::ds]
+		if bg:
+			PC=np.ma.array(PC,mask=(PC==bg))
+
 		# Plot
 		PCFig=plt.figure('PrincipalComponent')
 		ax=PCFig.add_subplot(111)
-		cax=ax.imshow(self.PCstack[pcNdx,::ds,::ds],cmap=cmap)
+		cax=ax.imshow(PC,cmap=cmap)
 		ax.set_title('PC {}'.format(PC))
 		PCFig.colorbar(cax,orientation='vertical')
