@@ -296,7 +296,7 @@ def slope(I,dx=1.,dy=1.,ktype='sobel'):
 class grad: 
 	# dx is the cell size in x 
 	# dy is the cell size in y 
-	def __init__(self,I,dx,dy,ktype='scharr'): 
+	def __init__(self,I,dx,dy,ktype='sobel'): 
 		# Establish kernel 
 		ktype=ktype.lower(); self.ktype=ktype 
 		if ktype=='roberts': 
